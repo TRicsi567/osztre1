@@ -14,13 +14,16 @@ public class Server {
     public Server(String[] initIndex) throws IOException {
         serverSocket = new ServerSocket(PORT);
         index = new LinkedHashSet<>(Arrays.asList(initIndex));
-        System.out.println("Server socket is listening at: " + PORT);
 
-        for (int i = 0; i < 2; ++i) {
-            Thread clienThread = new Thread(new ClientHandler(serverSocket, index));
-            clienThread.start();
+        try {
+            while(true) {
+                Thread clienThread = new Thread(new ClientHandler(serverSocket, index));
+                clienThread.start();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            serverSocket.close();
         }
-        serverSocket.close();
     }
 
     public static void main(String[] args) {

@@ -39,47 +39,56 @@ public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
 
         String fileName = fromClient.readLine();
 
-        if(!index.contains(fileName)) {
-            toClient.println(NOT_FOUND);
-            toClient.println(END_OF_DOCUMENT);
-            return;
+        synchronized(fileName.intern()) {
+
+            if(!index.contains(fileName)) {
+                toClient.println(NOT_FOUND);
+                toClient.println(END_OF_DOCUMENT);
+                return;
+            }
+    
+            try (BufferedReader file = new BufferedReader(new FileReader(fileName, StandardCharsets.UTF_8))) {
+                String line = null;
+        
+                while((line = file.readLine()) != null) {
+                    toClient.println(line);
+                }
+                toClient.println(END_OF_DOCUMENT);
+                file.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
         }
 
-        try (BufferedReader file = new BufferedReader(new FileReader(fileName, StandardCharsets.UTF_8))) {
-            String line = null;
-    
-            while((line = file.readLine()) != null) {
-                toClient.println(line);
-            }
-            toClient.println(END_OF_DOCUMENT);
-            file.close();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
     };
 
     @Override
     public void handleUploadDocument(BufferedReader fromClient, PrintWriter toClient) throws IOException {
         String fileName = fromClient.readLine();
 
-        try(BufferedWriter file = new BufferedWriter(new FileWriter(fileName, StandardCharsets.UTF_8 )) ) {
-            
-            String line = null;
-            while((line = fromClient.readLine())!=null) {
-                if(line.equals(END_OF_DOCUMENT)) {
-                    break;
-                }
-                file.write(line, 0, line.length());
-                file.write(System.lineSeparator());
-            }
-            file.flush();
-            file.close();
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        synchronized(this) {
+            index.add(fileName);
         }
 
-        index.add(fileName);
+        synchronized(fileName.intern()) {
+            try(BufferedWriter file = new BufferedWriter(new FileWriter(fileName, StandardCharsets.UTF_8 )) ) {
+                
+                String line = null;
+                while((line = fromClient.readLine())!=null) {
+                    if(line.equals(END_OF_DOCUMENT)) {
+                        break;
+                    }
+                    file.write(line, 0, line.length());
+                    file.write(System.lineSeparator());
+                }
+                file.flush();
+                file.close();
+    
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+
 
     };
 
