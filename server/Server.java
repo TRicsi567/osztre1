@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class Server {
 
     private ServerSocket serverSocket;
-    private ArrayList<ClientHandler> clients;
+    private ArrayList<Thread> clients;
 
     public Server(Integer port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -19,7 +19,9 @@ public class Server {
     public void start() throws IOException {
         for (int i = 0; i < 2; ++i) {
             Socket client = serverSocket.accept();
-            clients.add(new ClientHandler(client));
+            Thread clienThread = new Thread(new ClientHandler(client));
+            clients.add(clienThread);
+            clienThread.start();
         }
         serverSocket.close();
     }
