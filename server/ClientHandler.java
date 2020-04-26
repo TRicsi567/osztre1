@@ -2,23 +2,28 @@ package server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.LinkedHashSet;
 
-public class ClientHandler implements IClientHandler, Runnable {
+public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
 
-    private Socket clinet;
+    private static final String DOWNLOAD_DOCUMENT = "DOWNLOAD_DOCUMENT";
+    private static final String UPLOAD_DOCUMENT = "UPLOAD_DOCUMENT";
+    private static final String LIST_DOCUMENTS = "LIST_DOCUMENTS";
+
+    private static final String END_OF_DOCUMENT = "END_OF_DOCUMENT";
+    private static final String NOT_FOUND  = "NOT_FOUND";
+    
+    private Socket client;
+    private LinkedHashSet<String> index;
     private BufferedReader input;
     private PrintWriter output;
 
-    public ClientHandler(Socket client) throws IOException {
-        System.out.println(client.getInetAddress().getHostAddress() + " csatlakozott");
-        this.clinet = client;
-        input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-        output = new PrintWriter(new OutputStreamWriter(client.getOutputStream()));
-        
+    public ClientHandler(ServerSocket ss, LinkedHashSet<String> index) throws IOException {
+        client = ss.accept();
+        this.index = index;
     }
 
     @Override
@@ -41,41 +46,43 @@ public class ClientHandler implements IClientHandler, Runnable {
     @Override
     public void handleUnknownRequest(PrintWriter toClient) throws IOException {
         System.out.println("handleUnknownRequest");
-
+        try {
+            close();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     @Override
-    public void run(){
-        Integer action = 4;
-
+    public void run() {
         try {
-            action = Integer.parseInt(input.readLine());
-        } catch (NumberFormatException ex) {
-            action = 4;
+            String action = input.readLine();
+
+            System.out.println(action);
+    
+                switch(action) {
+                    case DOWNLOAD_DOCUMENT: 
+                        handleDownloadDocument(input, output);
+                        break;
+                    case LIST_DOCUMENTS:
+                        handleListDocuments(output);
+                        break;
+                    case UPLOAD_DOCUMENT: 
+                        handleUploadDocument(input, output);
+                        break;
+                    default:
+                        handleUnknownRequest(output);
+                }        
+
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+    }
 
-        System.out.println(action);
-
-        try {
-            switch(action) {
-                case 0: 
-                    handleDownloadDocument(input, output);
-                    break;
-                case 1:
-                    handleListDocuments(output);
-                    break;
-                case 2: 
-                    handleUploadDocument(input, output);
-                    break;
-                default:
-                    handleUnknownRequest(output);
-            }        
-        } catch(IOException ex) {
-            ex.printStackTrace();
+	@Override
+	public void close() throws Exception {
+        if(client != null) {
+            client.close();
         }
-
-
-    };
+	};
 }
