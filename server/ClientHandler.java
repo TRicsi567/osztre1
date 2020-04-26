@@ -1,10 +1,14 @@
 package server;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.io.InputStreamReader;
 
@@ -32,18 +36,55 @@ public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
 
     @Override
     public void handleDownloadDocument(BufferedReader fromClient, PrintWriter toClient) throws IOException {
-        System.out.println("handleDownloadDocument");
+
+        String fileName = fromClient.readLine();
+
+        if(!index.contains(fileName)) {
+            toClient.println(NOT_FOUND);
+            toClient.println(END_OF_DOCUMENT);
+            return;
+        }
+
+        try (BufferedReader file = new BufferedReader(new FileReader(fileName, StandardCharsets.UTF_8))) {
+            String line = null;
+    
+            while((line = file.readLine()) != null) {
+                toClient.println(line);
+            }
+            toClient.println(END_OF_DOCUMENT);
+            file.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     };
 
     @Override
     public void handleUploadDocument(BufferedReader fromClient, PrintWriter toClient) throws IOException {
-        System.out.println("handleUploadDocument");
+        String fileName = fromClient.readLine();
+
+        try(BufferedWriter file = new BufferedWriter(new FileWriter(fileName, StandardCharsets.UTF_8 )) ) {
+            
+            String line = null;
+            while((line = fromClient.readLine())!=null) {
+                if(line.equals(END_OF_DOCUMENT)) {
+                    break;
+                }
+                file.write(line, 0, line.length());
+                file.write(System.lineSeparator());
+            }
+            file.flush();
+            file.close();
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        index.add(fileName);
 
     };
 
     @Override
     public void handleListDocuments(PrintWriter toClient) throws IOException {
-        System.out.println("handleListDocuments");
         for (String fileName : index) {
             toClient.println(fileName);
         }
@@ -53,7 +94,6 @@ public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
 
     @Override
     public void handleUnknownRequest(PrintWriter toClient) throws IOException {
-        System.out.println("handleUnknownRequest");
         try {
             close();
         } catch (Exception ex) {
@@ -64,12 +104,8 @@ public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
     @Override
     public void run() {
         while (true) {
-
             try {
                 String action = fromClinet.readLine();
-
-                System.out.println(action);
-
                 switch (action) {
                     case DOWNLOAD_DOCUMENT:
                         handleDownloadDocument(fromClinet, toClient);
@@ -96,5 +132,7 @@ public class ClientHandler implements IClientHandler, Runnable, AutoCloseable {
         if (client != null) {
             client.close();
         }
+        fromClinet.close();
+        toClient.close();
     };
 }

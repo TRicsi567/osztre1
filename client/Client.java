@@ -1,12 +1,10 @@
 package client;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 
@@ -17,6 +15,9 @@ public class Client implements IClient, AutoCloseable, Runnable {
     private static final String LIST_DOCUMENTS = "LIST_DOCUMENTS";
 
     private static final String END_OF_LIST = "END_OF_LIST";
+    private static final String END_OF_DOCUMENT = "END_OF_DOCUMENT";
+    private static final String EOF = "EOF";
+
 
     private static final int PORT = 5000;
     private static final String HOST = "localhost";
@@ -44,11 +45,39 @@ public class Client implements IClient, AutoCloseable, Runnable {
         toServer.println(UPLOAD_DOCUMENT);
         userOutput.println("| Enter document name:");
         String fileName = userInput.readLine();
+        toServer.println(fileName);
+        
+        userOutput.println("| Enter document content:");
+        
+        String line = null;
+
+        while((line = userInput.readLine()) != null) {
+            if(line.equals(EOF)) {
+                break;
+            }
+
+            toServer.println(line);
+        }
+        toServer.println(END_OF_DOCUMENT);
 
     };
 
     public void handleDownloadDocument() throws IOException {
         toServer.println(DOWNLOAD_DOCUMENT);
+        userOutput.println("| Enter document name:");
+        String fileName = userInput.readLine();
+        toServer.println(fileName);
+
+        String line = null;
+
+        while((line = fromServer.readLine()) != null) {
+            if(line.equals(END_OF_DOCUMENT)) {
+                break;
+            }
+
+            userOutput.println("| " + line);
+        }
+
     };
 
     public void handleListDocuments() throws IOException {
@@ -60,7 +89,7 @@ public class Client implements IClient, AutoCloseable, Runnable {
             if (msg.equals(END_OF_LIST)) {
                 break;
             }
-            userOutput.println(msg);
+            userOutput.println("| " + msg);
         }
     };
 
@@ -86,13 +115,13 @@ public class Client implements IClient, AutoCloseable, Runnable {
         try {
             switch (option) {
                 case 0:
-                    handleUploadDocument();
+                    handleDownloadDocument();
                     break;
                 case 1:
                     handleListDocuments();
                     break;
                 case 2:
-                    handleListDocuments();
+                    handleUploadDocument();
                     break;
                 default:
                     handleWarning("Invalid option");
@@ -114,6 +143,7 @@ public class Client implements IClient, AutoCloseable, Runnable {
                 handleMenuOption(4);
             } catch (IOException ex) {
                 ex.printStackTrace();
+                break;
             }
         }
 
