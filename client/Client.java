@@ -42,6 +42,9 @@ public class Client implements IClient, AutoCloseable, Runnable {
 
     public void handleUploadDocument() throws IOException {
         toServer.println(UPLOAD_DOCUMENT);
+        userOutput.println("| Enter document name:");
+        String fileName = userInput.readLine();
+
     };
 
     public void handleDownloadDocument() throws IOException {
