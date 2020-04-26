@@ -7,48 +7,65 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.Socket;
 
 public class Client implements IClient, AutoCloseable, Runnable {
+
+    private static final String DOWNLOAD_DOCUMENT = "DOWNLOAD_DOCUMENT";
+    private static final String UPLOAD_DOCUMENT = "UPLOAD_DOCUMENT";
+    private static final String LIST_DOCUMENTS = "LIST_DOCUMENTS";
+
+    private static final String END_OF_LIST = "END_OF_LIST";
 
     private static final int PORT = 5000;
     private static final String HOST = "localhost";
     private Socket socket;
     private BufferedReader userInput;
-    private BufferedWriter userOutput;
+    private PrintWriter userOutput;
     private BufferedReader fromServer;
-    private BufferedWriter toServer;
+    private PrintWriter toServer;
 
     public Client(InputStream userInput, OutputStream userOutput) throws IOException {
         socket = new Socket(HOST, PORT);
         this.userInput = new BufferedReader(new InputStreamReader(userInput));
-        this.userOutput = new BufferedWriter(new OutputStreamWriter(userOutput));
+        this.userOutput = new PrintWriter(userOutput, true);
         this.fromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.toServer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+        this.toServer = new PrintWriter(socket.getOutputStream(), true);
     }
 
-    private static void printMenu() {
-        System.out.println("| 0 - download document");
-        System.out.println("| 1 - list documents");
-        System.out.println("| 2 - upload content");
+    private void printMenu() throws IOException {
+        userOutput.println("| 0 - download document");
+        userOutput.println("| 1 - list documents");
+        userOutput.println("| 2 - upload content");
     }
 
     public void handleUploadDocument() throws IOException {
+        toServer.println(UPLOAD_DOCUMENT);
     };
 
     public void handleDownloadDocument() throws IOException {
+        toServer.println(DOWNLOAD_DOCUMENT);
     };
 
     public void handleListDocuments() throws IOException {
+        toServer.println(LIST_DOCUMENTS);
+
+        String msg = null;
+
+        while ((msg = fromServer.readLine()) != null) {
+            if (msg.equals(END_OF_LIST)) {
+                break;
+            }
+            userOutput.println(msg);
+        }
     };
 
-    public void handleWarning (String msg) throws IOException{
+    public void handleWarning(String msg) throws IOException {
         StringBuilder sb = new StringBuilder("| Warning: ");
         sb.append(msg);
         String errorMsg = sb.toString();
-        userOutput.write(errorMsg, 0, errorMsg.length());
-        userOutput.newLine();
-        userOutput.flush();
+        userOutput.println(errorMsg);
     }
 
     private Integer getMenuOption() throws NumberFormatException {
@@ -64,7 +81,7 @@ public class Client implements IClient, AutoCloseable, Runnable {
 
     private void handleMenuOption(Integer option) {
         try {
-            switch(option) {
+            switch (option) {
                 case 0:
                     handleUploadDocument();
                     break;
@@ -85,37 +102,26 @@ public class Client implements IClient, AutoCloseable, Runnable {
     @Override
     public void run() {
 
-        int hax = 0;
-
-        while(true) {
-            if(hax % 2 == 0) {
+        while (true) {
+            try {
                 printMenu();
-            } else {
-                try {
-                    Integer option = getMenuOption();
-                    handleMenuOption(option);
-                } catch (NumberFormatException ex) {
-                    handleMenuOption(4);
-                }
+                Integer option = getMenuOption();
+                handleMenuOption(option);
+            } catch (NumberFormatException ex) {
+                handleMenuOption(4);
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
-            ++hax;
         }
 
     }
-    
 
-	@Override
-	public void close() throws Exception {
-		if(socket != null) {
-            socket.close();
-        }
-        if(fromServer != null) {
-            fromServer.close();
-        }
-        if(toServer != null) {
-            toServer.close();
-        }
-	}
+    @Override
+    public void close() throws Exception {
+        socket.close();
+        fromServer.close();
+        toServer.close();
+    }
 
     public static void main(String[] args) {
         try {
